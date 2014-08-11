@@ -18,53 +18,54 @@ function mouseClick(e) {
 	if(e.offsetX) {mouseX = e.offsetX; mouseY = e.offsetY;}
 	else if(e.layerX) {mouseX = e.layerX;mouseY = e.layerY;} // IE
 
-	addBody(mouseX,mouseY,0,0);
+	addBody({x: mouseX, y: mouseY});
 }
 
 // Drag stuff
-var isDrag = false;
-var dragx,dragy,dragm;
-var dragx2,dragy2;
+var drag = { is: false, m: (MINMASS + MAXMASS) / 2 };
 
 function mouseDown(e) {
-	isDrag = true;
+	drag.is = true;
 
 	var mouseX, mouseY;
 	if(e.offsetX) {mouseX = e.offsetX; mouseY = e.offsetY;}
 	else if(e.layerX) {mouseX = e.layerX;mouseY = e.layerY;} // IE
 
-	dragx = mouseX;
-	dragy = mouseY;
-	dragx2 = mouseX;
-	dragy2 = mouseY;
+	drag.x = mouseX;
+	drag.y = mouseY;
+	drag.x2 = mouseX;
+	drag.y2 = mouseY;
 	refreshGraphics();
 }
 
 function mouseMove(e) {
-	if (isDrag) {
+	if (drag.is) {
 		var mouseX, mouseY;
 		if(e.offsetX) {mouseX = e.offsetX; mouseY = e.offsetY;}
 		else if(e.layerX) {mouseX = e.layerX;mouseY = e.layerY;} // IE
-		dragx2 = mouseX;
-		dragy2 = mouseY;
-		dragx2 = (mouseX-dragx)/arrowLengthRatio + dragx;
-		dragy2 = (mouseY-dragy)/arrowLengthRatio + dragy;
+		drag.x2 = mouseX;
+		drag.y2 = mouseY;
+		drag.x2 = (mouseX-drag.x)/arrowLengthRatio + drag.x;
+		drag.y2 = (mouseY-drag.y)/arrowLengthRatio + drag.y;
 		refreshGraphics();
 	}
 }
 
 function mouseUp(e) {
-	if (isDrag) {
-		isDrag = false;
+	if (drag.is) {
+		drag.is = false;
 
 		var mouseX, mouseY;
 		if(e.offsetX) {mouseX = e.offsetX; mouseY = e.offsetY;}
 		else if(e.layerX) {mouseX = e.layerX;mouseY = e.layerY;} // IE
 		
-		mouseX = (mouseX-dragx)/arrowLengthRatio + dragx;
-		mouseY = (mouseY-dragy)/arrowLengthRatio + dragy;
+		mouseX = (mouseX-drag.x)/arrowLengthRatio + drag.x;
+		mouseY = (mouseY-drag.y)/arrowLengthRatio + drag.y;
 		
-		addBody(dragx,dragy,mouseX-dragx,mouseY-dragy,dragm);
+		drag.v = { x: mouseX - drag.x, y: mouseY - drag.y };
+
+		addBody(drag);
+
 		refreshGraphics();
 	}
 }
@@ -73,23 +74,22 @@ function mouseUp(e) {
 // Update mass by arrow keys while dragging
 window.addEventListener('keydown',doKeyDown,true);
 var MASS_STEP = (MAXMASS-MINMASS)/10;
-dragm = (MINMASS+MAXMASS)/2;
 function doKeyDown(evt){
 	switch (evt.keyCode) {
 		case 69:  /* e was pressed */
 			if (DEBUG) {
 				console.log("'e' key pressed");
 			}
-			if (isDrag && dragm+MASS_STEP <= MAXMASS){
-				dragm += MASS_STEP;
+			if (drag.is && drag.m+MASS_STEP <= MAXMASS){
+				drag.m += MASS_STEP;
 			}
 			break;
 		case 68:  /* d key was pressed */
 			if (DEBUG) {
 				console.log("'d' key pressed");
 			}
-			if (isDrag && dragm-MASS_STEP >= MINMASS){
-				dragm -= MASS_STEP;
+			if (drag.is && drag.m-MASS_STEP >= MINMASS){
+				drag.m -= MASS_STEP;
 			}
 			break;
 		case 80:  /* p key was pressed */

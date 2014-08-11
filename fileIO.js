@@ -24,7 +24,7 @@ function handleFileSelect(evt) {
 		reader.onload = function(e) {
 			var text = e.target.result;
 			try {
-				jsData = parseInputText(text);
+				jsData = JSON.parse(text);
 			}
 			catch(e) {
 				ERROR = e; // For console access
@@ -67,21 +67,13 @@ function errorHandler(evt) {
 	}
 }
 
-function parseInputText(text) {
-	lines = text.split('\n');
-	for (var i=0;i<lines.size;i++) {
-		console.log(i,": ",lines[i]);
-	}
-	return JSON.parse(text);
-}
-
 function loadSysFromJSON(jsonData) {
 	// Constants
-	MINMASS = typeof(jsData.Constants.MINMASS) != 'undefined' ? jsData.Constants.MINMASS : MINMASS;
-	MAXMASS = typeof(jsData.Constants.MAXMASS) != 'undefined' ? jsData.Constants.MAXMASS : MAXMASS;
-	G = typeof(jsData.Constants.G) != 'undefined' ? jsData.Constants.G : G;
-	GFACTOR = typeof(jsData.Constants.GFACTOR) != 'undefined' ? jsData.Constants.GFACTOR : GFACTOR;
-	ETA = typeof(jsData.Constants.ETA) != 'undefined' ? jsData.Constants.ETA : ETA;
+	MINMASS = jsData.Constants.MINMASS || MINMASS;
+	MAXMASS = jsData.Constants.MAXMASS || MAXMASS;
+	G = jsData.Constants.G || G;
+	GFACTOR = jsData.Constants.GFACTOR || GFACTOR;
+	ETA = jsData.Constants.ETA || ETA;
 	if (DEBUG) {
 		console.log('MINMASS: ',MINMASS);
 		console.log('MAXMASS: ',MAXMASS);
@@ -91,10 +83,21 @@ function loadSysFromJSON(jsonData) {
 	}
 
 	// Bodies
-	for (i=0;i<jsData.Bodies.N;i++) {
-		var b = jsData.Bodies.BodyData[i];
-		//addBody(x,y,vx,vy,m)
-		addBody(b[1],b[2],b[3],b[4],b[0]);
+	for (var i = 0; i < jsData.bodies.length; i++) {
+		var item = jsData.bodies[i];
+		if (Array.isArray(item)) {
+			addBody({
+				m: item[0],
+				x: item[1],
+				y: item[2],
+				v: {
+					x: item[3],
+					y: item[4]
+				}
+			});
+		} else {
+			addBody(item);
+		}
 	}
 	refreshGraphics();
 }

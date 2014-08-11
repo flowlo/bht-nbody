@@ -123,7 +123,7 @@ function refreshGraphics() {
 
 	c.clearRect(0,0,canvasElement.width,canvasElement.height);
 
-	if (isDrag) {
+	if (drag.is) {
 		drawCircle(dragx,dragy,massToRadius(dragm));
 		drawArrow(dragx,dragy,dragx2,dragy2);
 	}

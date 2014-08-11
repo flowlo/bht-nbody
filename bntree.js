@@ -94,23 +94,25 @@ function addNrandomBodies(n){
 }
 
 function addRandomBody() {
-	addBody(
-		Math.random()*canvasElement.width,
-		Math.random()*canvasElement.height,
-		Math.random()*10-5,
-		Math.random()*10-5,
-		Math.random()*(MAXMASS-MINMASS)+MINMASS
-	);
+	addBody({
+		x: Math.random()*canvasElement.width,
+		y: Math.random()*canvasElement.height,
+		v: {
+			x: Math.random()*10-5,
+			y: Math.random()*10-5,
+		},
+		m: Math.random()*(MAXMASS-MINMASS)+MINMASS
+	});
 }
 
-function addBody(x,y,vx,vy,m) {
-	bods.pos.x [bods.N] = x;
-	bods.pos.y [bods.N] = y;
-	bods.vel.x [bods.N] = vx;
-	bods.vel.y [bods.N] = vy;
+function addBody(body) {
+	bods.pos.x [bods.N] = body.x || 0;
+	bods.pos.y [bods.N] = body.y || 0;
+	bods.vel.x [bods.N] = body.v.x || 0;
+	bods.vel.y [bods.N] = body.v.y || 0;
 	bods.acc.x [bods.N] = 0;
 	bods.acc.y [bods.N] = 0;
-	bods.mass [bods.N] = m;
+	bods.mass [bods.N] = body.m || 0;
 	bods.N = bods.N + 1;
 
 	if (DEBUG) {

@@ -184,7 +184,7 @@ function bnAddBody(node,i,depth) {
 		// Check if hit max depth
 		if (depth > MAXDEPTH) {
 			if (DEBUG>=3) {console.log('MAX DEPTH B',i);}
-			node.b [node.b.length] = i; // Add body to same node since already at max depth
+			node.b.push(i); // Add body to same node since already at max depth
 		} 
 		else {
 			var subBodies;
@@ -291,7 +291,7 @@ function doBNtreeRecurse(bI,node) {
 		var d = getDist(bods[bI].x,bods[bI].y,
 			node.com.x,node.com.y);
 		if (s/d < BN_THETA) {
-			setAccelDirect(bI,node.com.m,node.com.x,node.com.y)
+			setAccelDirect(bI,node.com)
 			numChecks += 1;
 		}
 		else {
@@ -327,51 +327,46 @@ function setAccel(i,j,do_Both) {
 
 	// a = F/m
 	// Body i
-	bods[i].a.x += F[0]/bods[i].m;
-	bods[i].a.y += F[1]/bods[i].m;
+	bods[i].a.x += F.x/bods[i].m;
+	bods[i].a.y += F.y/bods[i].m;
 	
 	if (do_Both) {
 		// Body j, equal and opposite force
-		bods[j].a.x -= F[0]/bods[j].m;
-		bods[j].a.y -= F[1]/bods[j].m;
+		bods[j].a.x -= F.x/bods[j].m;
+		bods[j].a.y -= F.y/bods[j].m;
 	}
 }
-function setAccelDirect(i,m,x,y) {
+function setAccelDirect(i, other) {
 	// Set's accel according to given mass
 
 	// get Force Vector between body i
 	// and a virtual mass
 	//   with mass m, at position cx,cy
-	var F = getForceVecDirect(
-		bods[i].m,bods[i].x,bods[i].y,
-		m,x,y);
+	var F = getForceVecDirect(bods[i], other);
 	
 	// Update acceleration of body
-	bods[i].a.x += F[0]/bods[i].m;
-	bods[i].a.y += F[1]/bods[i].m;
+	bods[i].a.x += F.x/bods[i].m;
+	bods[i].a.y += F.y/bods[i].m;
 }
 
 function getForceVec(i,j) {
 	if (DEBUG>=10) {
 		console.log("B",i," <-> B",j," : ",F);
 	}
-	return getForceVecDirect(
-		bods[i].m,bods[i].x,bods[i].y,
-		bods[j].m,bods[j].x,bods[j].y);
+	return getForceVecDirect(bods[i], bods[j]);
 }
 
-function getForceVecDirect(m,x,y,m2,x2,y2) {
+function getForceVecDirect(a, b) {
 	// Determines force interaction between
 	// bods[i] and bods[j], an adds to bods[i]
-	var dx = x2-x;
-	var dy = y2-y;
-	var r = (getDist(x,y,x2,y2)+ETA) * DISTANCE_MULTIPLE;
+	var dx = b.x - a.x;
+	var dy = b.y - a.y;
+	var r = (getDist(a.x, a.y, b.x, b.y) + ETA) * DISTANCE_MULTIPLE;
 	// F_{x|y} = d_{x|y}/r * G*M*m/r.^3;
-	var F = G*m*m2/Math.pow(r,GFACTOR);
+	var F = G * a.m * b.m / Math.pow(r, GFACTOR + 1);
 
-	return [ F*dx/r , F*dy/r ];
+	return { x: F * dx, y: F * dy };
 }
-
 
 // Update accels by checking every body to each other
 function forceBrute() {

@@ -22,7 +22,7 @@ function mouseClick(e) {
 }
 
 // Drag stuff
-var drag = { is: false, m: (MINMASS + MAXMASS) / 2 };
+var drag = { is: false, m: (m.min + m.max) / 2 };
 
 function mouseDown(e) {
 	drag.is = true;
@@ -73,14 +73,14 @@ function mouseUp(e) {
 
 // Update mass by arrow keys while dragging
 window.addEventListener('keydown',doKeyDown,true);
-var MASS_STEP = (MAXMASS-MINMASS)/10;
+var MASS_STEP = (m.max - m.min) / 10;
 function doKeyDown(evt){
 	switch (evt.keyCode) {
 		case 69:  /* e was pressed */
 			if (DEBUG) {
 				console.log("'e' key pressed");
 			}
-			if (drag.is && drag.m+MASS_STEP <= MAXMASS){
+			if (drag.is && drag.m+MASS_STEP <= m.max){
 				drag.m += MASS_STEP;
 			}
 			break;
@@ -88,7 +88,7 @@ function doKeyDown(evt){
 			if (DEBUG) {
 				console.log("'d' key pressed");
 			}
-			if (drag.is && drag.m-MASS_STEP >= MINMASS){
+			if (drag.is && drag.m-MASS_STEP >= m.min){
 				drag.m -= MASS_STEP;
 			}
 			break;

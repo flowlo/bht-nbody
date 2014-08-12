@@ -35,7 +35,7 @@ function initGraphics(canvasId,dataId){
 // Main Drawing --------------------------
 
 function drawBNtree() {
-	if (bnRoot && SHOW_BN_TREE) {drawBNnode(bnRoot,0)};
+	if (root && SHOW_BN_TREE) drawBNnode(root,0);
 }
 function drawBNnode(node,depth) {
 	// If body in node
@@ -167,7 +167,7 @@ function refreshGraphics() {
 }
 
 function massToRadius(mass) {
-	return MINRADIUS+(mass-MINMASS)/(MAXMASS-MINMASS)*(MAXRADIUS-MINRADIUS);
+	return MINRADIUS+(mass-m.min)/(m.max-m.min)*(MAXRADIUS-MINRADIUS);
 	
 }
 

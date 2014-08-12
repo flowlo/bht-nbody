@@ -166,7 +166,7 @@ function bnBuildTree() {
 	bnDeleteTree(bnRoot); // Delete Tree to clear memory
 	bnRoot = {b: [], // Body
 		leaf:true,
-		CoM: null, // center of mass
+//		CoM: null, // center of mass
 		nodes:[null,null,null,null],
 		// x y x2 y2
 		box:[0, 0, canvasElement.width, canvasElement.height]};
@@ -228,12 +228,12 @@ function bnAddBody(node,i,depth) {
 			node.leaf = false; // Always going to turn into a parent if not already
 		}
 		// Update center of mass
-		node.CoM[1] = (node.CoM[1]*node.CoM[0] + bods.pos.x[i]*bods.mass[i])/(node.CoM[0]+bods.mass[i]);
-		node.CoM[2] = (node.CoM[2]*node.CoM[0] + bods.pos.y[i]*bods.mass[i])/(node.CoM[0]+bods.mass[i]);
-		node.CoM[0] += bods.mass[i];
+		node.CoM.x = (node.CoM.x*node.CoM.m + bods.pos.x[i]*bods.mass[i])/(node.CoM.m+bods.mass[i]);
+		node.CoM.y = (node.CoM.y*node.CoM.m + bods.pos.y[i]*bods.mass[i])/(node.CoM.m+bods.mass[i]);
+		node.CoM.m += bods.mass[i];
 	} else { // else if node empty, add body
 		node.b = [i];
-		node.CoM = [bods.mass[i], bods.pos.x[i],bods.pos.y[i]]; // Center of Mass set to the position of single body
+		node.CoM = {m: bods.mass[i], x: bods.pos.x[i], y: bods.pos.y[i] }; // Center of Mass set to the position of single body
 	}
 }
 
@@ -256,7 +256,7 @@ function bnMakeNode(parent,quad,child) {
 	}
 	var child = {b:[child],
 		leaf:true,
-		CoM : [bods.mass[child], bods.pos.x[child],bods.pos.y[child]], // Center of Mass set to the position of single body
+		CoM : {m: bods.mass[child], x: bods.pos.x[child], y: bods.pos.y[child]}, // Center of Mass set to the position of single body
 		nodes:[null,null,null,null],
 		box:[0,0,0,0]};
 
@@ -306,9 +306,9 @@ function doBNtreeRecurse(bI,node) {
 	else {
 		var s = Math.min( node.box[2]-node.box[0] , node.box[3]-node.box[1] ); // Biggest side of box
 		var d = getDist(bods.pos.x[bI],bods.pos.y[bI],
-			node.CoM[1],node.CoM[2]);
+			node.CoM.x,node.CoM.y);
 		if (s/d < BN_THETA) {
-			setAccelDirect(bI,node.CoM[0],node.CoM[1],node.CoM[2])
+			setAccelDirect(bI,node.CoM.m,node.CoM.x,node.CoM.y)
 			numChecks += 1;
 		}
 		else {

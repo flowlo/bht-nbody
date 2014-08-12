@@ -221,16 +221,7 @@ function bnAddBody(node,i,depth) {
 }
 
 function getQuad(i,box) {
-	var mx = (box[0]+box[2])/2;
-	var my = (box[1]+box[3])/2;
-	if (bods[i].x < mx) { // Left
-		if (bods[i].y < my) {return 0;} // Top
-		else {return 2;} // Bottom
-	}
-	else { // right
-		if (bods[i].y < my) {return 1;} // Top
-		else {return 3;} // Bottom}
-	}
+	return (bods[i].x >= (box[0] + box[2]) / 2) + (bods[i].y >= (box[1] + box[3]) / 2) * 2;
 }
 
 function bnMakeNode(parent,quad,child) {

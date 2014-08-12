@@ -71,11 +71,11 @@ function drawBNnode(node,depth) {
 // Updates text on html page
 function updateData() {
 	timeDisp.value = T.toFixed(2); // Update time output form
-	var bruteHalfChecks = bods.N*(bods.N-1)/2; // what efficient Brute Force checks would be
-	bodyCounter.innerHTML = bods.N;
+	var bruteHalfChecks = bods.length*(bods.length-1)/2; // what efficient Brute Force checks would be
+	bodyCounter.innerHTML = bods.length;
 
 	data.innerHTML = "<p><b>System "+(sysRunning?"Running":"Paused")+"</b><br/>\n\
-		Bodies: "+bods.N+"<br/>\n\
+		Bodies: "+bods.length+"<br/>\n\
 		Force calculations per step: "+numChecks+"<br/>\n\
 		</p>";
 
@@ -108,9 +108,9 @@ function updateData() {
 	if (DEBUG>=1) {
 		data.innerHTML += "<ul>";
 		var i;
-		for(i=0;i<bods.N;i++){
+		for(i=0;i<bods.length;i++){
 			data.innerHTML += "<li> B"+i+" : Pos "+
-				bods.pos.x[i].toFixed(2)+", "+bods.pos.y[i].toFixed(2)+
+				bods[i].x.toFixed(2)+", "+bods[i].y.toFixed(2)+
 				" </li>";
 		}
 		data.innerHTML += "</ul>";
@@ -131,23 +131,23 @@ function refreshGraphics() {
 	com = {x:0,y:0}; // Center of mass of sys
 	var allMass = 0;
 
-	for(var i=0;i<bods.N;i++){
-		drawCircle(bods.pos.x[i],bods.pos.y[i],massToRadius(bods.mass[i]));
+	for(var i=0;i<bods.length;i++){
+		drawCircle(bods[i].x,bods[i].y,massToRadius(bods[i].m));
 		// Velocity arrow (Green)
 		if (drawArrows) {
-			drawArrow(bods.pos.x[i],
-				bods.pos.y[i],
-				bods.pos.x[i]+bods.vel.x[i],
-				bods.pos.y[i]+bods.vel.y[i],'',"#0f0");
+			drawArrow(bods[i].x,
+				bods[i].y,
+				bods[i].x+bods[i].v.x,
+				bods[i].y+bods[i].v.y,'',"#0f0");
 			// Acceleration arrow (Red)
-			drawArrow(bods.pos.x[i],
-				bods.pos.y[i],
-				bods.pos.x[i]+bods.acc.x[i],
-				bods.pos.y[i]+bods.acc.y[i],5,"#f00");
+			drawArrow(bods[i].x,
+				bods[i].y,
+				bods[i].x+bods[i].a.x,
+				bods[i].y+bods[i].a.y,5,"#f00");
 		}
-		com.x += bods.pos.x[i]*bods.mass[i];
-		com.y += bods.pos.y[i]*bods.mass[i];
-		allMass += bods.mass[i];
+		com.x += bods[i].x*bods[i].m;
+		com.y += bods[i].y*bods[i].m;
+		allMass += bods[i].m;
 	}
 
 	// Draw Center of Mass

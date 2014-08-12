@@ -58,17 +58,7 @@ var dt; // Global DT set by html
 var bods;
 
 function resetBodies() {
-	if (bods) {
-		bods.pos = null;
-		bods.vel = null;
-		bods.mass = null;
-	}
-
-	bods = {pos:{x:new Array(),y:new Array()},
-		vel:{x:new Array(),y:new Array()},
-		acc:{x:new Array(),y:new Array()},
-		mass:new Array(),
-		N:0};
+	bods = [];
 }
 
 // Canvas Context
@@ -101,24 +91,17 @@ function addRandomBody() {
 			x: Math.random()*10-5,
 			y: Math.random()*10-5,
 		},
-		m: Math.random()*(MAXMASS-MINMASS)+MINMASS
+		m: Math.random() * (MAXMASS - MINMASS) + MINMASS
 	});
 }
 
 function addBody(body) {
-	bods.pos.x [bods.N] = body.x || 0;
-	bods.pos.y [bods.N] = body.y || 0;
-	bods.vel.x [bods.N] = body.v.x || 0;
-	bods.vel.y [bods.N] = body.v.y || 0;
-	bods.acc.x [bods.N] = 0;
-	bods.acc.y [bods.N] = 0;
-	bods.mass [bods.N] = body.m || 0;
-	bods.N = bods.N + 1;
-
+	bods.push(body);
+	
 	if (DEBUG) {
-	    console.log("ADD BODY M: ",m," P:",x,",",y," V:",vx,",",vy);
+	    console.log('Body added: ', body);
 	}
-	if (bods.N >= 100 && DEBUG > 0) {
+	if (bods.length >= 100 && DEBUG > 0) {
 		setDEBUG(0); // temp check to keep debug off when too many bodies
 	}
 	if (!sysRunning) {bnBuildTree();}
@@ -166,14 +149,14 @@ function bnBuildTree() {
 	bnDeleteTree(bnRoot); // Delete Tree to clear memory
 	bnRoot = {b: [], // Body
 		leaf:true,
-//		CoM: null, // center of mass
+//		com: null, // center of mass
 		nodes:[null,null,null,null],
 		// x y x2 y2
 		box:[0, 0, canvasElement.width, canvasElement.height]};
 	
 	// Add each body to tree
-	for (var i=0;i<bods.N;i++) {
-		if (pointInBBOX(bods.pos.x[i],bods.pos.y[i],bnRoot.box)) {
+	for (var i=0;i<bods.length;i++) {
+		if (pointInBBOX(bods[i].x,bods[i].y,bnRoot.box)) {
 			bnAddBody(bnRoot,i,0);
 		}
 		else {
@@ -228,24 +211,24 @@ function bnAddBody(node,i,depth) {
 			node.leaf = false; // Always going to turn into a parent if not already
 		}
 		// Update center of mass
-		node.CoM.x = (node.CoM.x*node.CoM.m + bods.pos.x[i]*bods.mass[i])/(node.CoM.m+bods.mass[i]);
-		node.CoM.y = (node.CoM.y*node.CoM.m + bods.pos.y[i]*bods.mass[i])/(node.CoM.m+bods.mass[i]);
-		node.CoM.m += bods.mass[i];
+		node.com.x = (node.com.x*node.com.m + bods[i].x*bods[i].m)/(node.com.m+bods[i].m);
+		node.com.y = (node.com.y*node.com.m + bods[i].y*bods[i].m)/(node.com.m+bods[i].m);
+		node.com.m += bods[i].m;
 	} else { // else if node empty, add body
-		node.b = [i];
-		node.CoM = {m: bods.mass[i], x: bods.pos.x[i], y: bods.pos.y[i] }; // Center of Mass set to the position of single body
+		node.b = [ i ];
+		node.com = { m: bods[i].m, x: bods[i].x, y: bods[i].y };
 	}
 }
 
 function getQuad(i,box) {
 	var mx = (box[0]+box[2])/2;
 	var my = (box[1]+box[3])/2;
-	if (bods.pos.x[i] < mx) { // Left
-		if (bods.pos.y[i] < my) {return 0;} // Top
+	if (bods[i].x < mx) { // Left
+		if (bods[i].y < my) {return 0;} // Top
 		else {return 2;} // Bottom
 	}
 	else { // right
-		if (bods.pos.y[i] < my) {return 1;} // Top
+		if (bods[i].y < my) {return 1;} // Top
 		else {return 3;} // Bottom}
 	}
 }
@@ -256,7 +239,7 @@ function bnMakeNode(parent,quad,child) {
 	}
 	var child = {b:[child],
 		leaf:true,
-		CoM : {m: bods.mass[child], x: bods.pos.x[child], y: bods.pos.y[child]}, // Center of Mass set to the position of single body
+		com : { m: bods[child].m, x: bods[child].x, y: bods[child].y }, // Center of Mass set to the position of single body
 		nodes:[null,null,null,null],
 		box:[0,0,0,0]};
 
@@ -305,10 +288,10 @@ function doBNtreeRecurse(bI,node) {
 	}
 	else {
 		var s = Math.min( node.box[2]-node.box[0] , node.box[3]-node.box[1] ); // Biggest side of box
-		var d = getDist(bods.pos.x[bI],bods.pos.y[bI],
-			node.CoM.x,node.CoM.y);
+		var d = getDist(bods[bI].x,bods[bI].y,
+			node.com.x,node.com.y);
 		if (s/d < BN_THETA) {
-			setAccelDirect(bI,node.CoM.m,node.CoM.x,node.CoM.y)
+			setAccelDirect(bI,node.com.m,node.com.x,node.com.y)
 			numChecks += 1;
 		}
 		else {
@@ -328,7 +311,7 @@ function getDist(x,y,x2,y2) {
 function forceBNtree() {
 	bnBuildTree(); // Build BN tree based on current pos
 	numChecks = 0;
-	for (var i=0;i<bods.N;i++) {
+	for (var i=0;i<bods.length;i++) {
 		// For each body
 		doBNtree(i);
 	}
@@ -344,13 +327,13 @@ function setAccel(i,j,do_Both) {
 
 	// a = F/m
 	// Body i
-	bods.acc.x[i] += F[0]/bods.mass[i];
-	bods.acc.y[i] += F[1]/bods.mass[i];
+	bods[i].a.x += F[0]/bods[i].m;
+	bods[i].a.y += F[1]/bods[i].m;
 	
 	if (do_Both) {
 		// Body j, equal and opposite force
-		bods.acc.x[j] -= F[0]/bods.mass[j];
-		bods.acc.y[j] -= F[1]/bods.mass[j];
+		bods[j].a.x -= F[0]/bods[j].m;
+		bods[j].a.y -= F[1]/bods[j].m;
 	}
 }
 function setAccelDirect(i,m,x,y) {
@@ -360,12 +343,12 @@ function setAccelDirect(i,m,x,y) {
 	// and a virtual mass
 	//   with mass m, at position cx,cy
 	var F = getForceVecDirect(
-		bods.mass[i],bods.pos.x[i],bods.pos.y[i],
+		bods[i].m,bods[i].x,bods[i].y,
 		m,x,y);
 	
 	// Update acceleration of body
-	bods.acc.x[i] += F[0]/bods.mass[i];
-	bods.acc.y[i] += F[1]/bods.mass[i];
+	bods[i].a.x += F[0]/bods[i].m;
+	bods[i].a.y += F[1]/bods[i].m;
 }
 
 function getForceVec(i,j) {
@@ -373,8 +356,8 @@ function getForceVec(i,j) {
 		console.log("B",i," <-> B",j," : ",F);
 	}
 	return getForceVecDirect(
-		bods.mass[i],bods.pos.x[i],bods.pos.y[i],
-		bods.mass[j],bods.pos.x[j],bods.pos.y[j]);
+		bods[i].m,bods[i].x,bods[i].y,
+		bods[j].m,bods[j].x,bods[j].y);
 }
 
 function getForceVecDirect(m,x,y,m2,x2,y2) {
@@ -394,8 +377,8 @@ function getForceVecDirect(m,x,y,m2,x2,y2) {
 function forceBrute() {
 	numChecks = 0;
 	// Brute force O(n^2) comparisons
-	for (var i=0;i<bods.N;i++) {
-		for (var j=i+1;j<bods.N;j++) {
+	for (var i=0;i<bods.length;i++) {
+		for (var j=i+1;j<bods.length;j++) {
 			setAccel(i,j);
 			numChecks += 1;
 		}
@@ -407,9 +390,8 @@ var numChecks;
 // Set accelerations of bodies based on gravity
 function doForces() {
 	// Zero accelerations
-	for (var i=0;i<bods.N;i++) {
-		bods.acc.x[i]=0;
-		bods.acc.y[i]=0;
+	for (var i=0;i<bods.length;i++) {
+		bods[i].a = { x: 0, y: 0 };
 	}
 
 	// Determine accelerations on all bodies
@@ -462,16 +444,16 @@ function leapfrog() {
 
 function updatePos(dt_step) {
 	// Update body positions based on velocities
-	for (var i=0;i<bods.N;i++) {
-		bods.pos.x[i] += bods.vel.x[i]*dt_step;
-		bods.pos.y[i] += bods.vel.y[i]*dt_step;
+	for (var i=0;i<bods.length;i++) {
+		bods[i].x += bods[i].v.x*dt_step;
+		bods[i].y += bods[i].v.y*dt_step;
 	}
 }
 function updateVel(dt_step) {
 	// Update body velocities based on accelerations
-	for (var i=0;i<bods.N;i++) {
-		bods.vel.x[i] += bods.acc.x[i]*dt_step;
-		bods.vel.y[i] += bods.acc.y[i]*dt_step;
+	for (var i=0;i<bods.length;i++) {
+		bods[i].v.x += bods[i].a.x*dt_step;
+		bods[i].v.y += bods[i].a.y*dt_step;
 	}
 }
 

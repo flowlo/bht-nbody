@@ -96,6 +96,7 @@ function addRandomBody() {
 }
 
 function addBody(body) {
+	body.a = { x: 0, y: 0 };
 	bods.push(body);
 	
 	if (DEBUG) {
@@ -377,7 +378,8 @@ var numChecks;
 function doForces() {
 	// Zero accelerations
 	for (var i=0;i<bods.length;i++) {
-		bods[i].a = { x: 0, y: 0 };
+		bods[i].a.x = 0;
+		bods[i].a.y = 0;
 	}
 
 	// Determine accelerations on all bodies

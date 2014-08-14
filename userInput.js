@@ -1,13 +1,9 @@
-// User Input Stuff
-// Introduce new body to system at mouse position
 function initUI(){
 	//canvas.onclick = mouseClick;
 	canvas.onmousedown = mouseDown;
 	canvas.onmouseup = mouseUp;
-	canvas.onmousemove	 = mouseMove;
-	if (DEBUG) {
-		console.log("Initialize UI complete.");
-	}
+	canvas.onmousemove = mouseMove;
+
 	setDT(-2);
 }
 
@@ -20,7 +16,6 @@ function mouseClick(e) {
 	addBody({x: mouseX, y: mouseY});
 }
 
-// Drag stuff
 var drag = { is: false, m: (m.min + m.max) / 2 };
 
 function mouseDown(e) {
@@ -69,9 +64,8 @@ function mouseUp(e) {
 	}
 }
 
-
 // Update mass by arrow keys while dragging
-window.addEventListener('keydown',doKeyDown,true);
+window.addEventListener('keydown', doKeyDown, true);
 var MASS_STEP = (m.max - m.min) / 10;
 function doKeyDown(evt){
 	switch (evt.keyCode) {

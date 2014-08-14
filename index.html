@@ -2,7 +2,7 @@
 
 <head>
 	<link rel="stylesheet" type="text/css" href="bnStyle.css" />
-	<script src="bntree.js"></script>
+	<script src="bhtree.js"></script>
 	<script src="graphics.js"></script>
 	<script src="userInput.js"></script>
 	<script src="fileIO.js"></script>
@@ -17,7 +17,7 @@
 	<tr>
 		<td colspan=2>
 			<div>
-			<button type="button" onclick="addNrandomBodies(100)">Add 100 Random Bodies</button>
+			<button type="button" onclick="randomBodies(100)">Add 100 Random Bodies</button>
 			or Choose JSON Input File<input type="file" id="fileInputs" name="files[]" accept="json" /></br>
 			<output id="fileList"></output>
 			</div>
@@ -86,13 +86,109 @@
 
 <script>
 var canvas = document.getElementById('bnCanvas'),
-    data = document.getElementById('data');
+    data = document.getElementById('data'),
+    bodies = [],
+    stats = {};
 var c = canvas.getContext('2d');
+
+// Basic update system step by time step dt
+var T = 0; // current system time
+var dt = 0.01;
+var stepTime;
+
+var timer;
+var sysRunning = false;
 
 drawArrows = false;
 initGraphics();
 initUI();
 initFileIO();
+
+function randomBodies(n) {
+	for (var i = 0; i < n; i++)
+		addBody({
+			x: Math.random() * canvas.width,
+			y: Math.random() * canvas.height,
+			v: {
+				x: Math.random() * 10 - 5,
+				y: Math.random() * 10 - 5,
+			},
+			m: Math.random() * (m.max - m.min) + m.min
+		});
+}
+
+function addBody(body) {
+	if (!body.v || !body.v.x || !body.v.y)
+		body.v = { x: 0, y: 0 };
+
+	if (!body.a || !body.a.x || !body.a.y)
+		body.a = { x: 0, y: 0 };
+
+	bodies.push(body);
+}
+
+function doForces() {
+	for (var i = 0; i < bodies.length; i++) {
+		bodies[i].a.x = 0;
+		bodies[i].a.y = 0;
+	}
+	
+	var tree = new BHTree(canvas.width, canvas.height, bodies, true);
+}
+
+function step() {
+	var now = new Date().getTime();
+
+
+	//stats = tree.getStats();
+	//console.log(stats);
+
+	leapfrog();
+
+	stepTime = new Date().getTime() - now;
+
+	T += dt;
+
+	refreshGraphics();
+}
+
+function forwardEuler() {
+	move(dt);
+	accelerate(dt);
+}
+
+function leapfrog() {
+	move(0.5 * dt);
+	doForces();
+	accelerate(dt);
+	move(0.5 * dt);
+}
+
+function move(dt) {
+	for (var i = 0; i < bodies.length; i++) {
+		bodies[i].x += bodies[i].v.x * dt;
+		bodies[i].y += bodies[i].v.y * dt;
+	}
+}
+
+function accelerate(dt) {
+	for (var i = 0; i < bodies.length; i++) {
+		bodies[i].v.x += bodies[i].a.x * dt;
+		bodies[i].v.y += bodies[i].a.y * dt;
+	}
+}
+
+function startSys() {
+	timer = setInterval(step, 10);
+	//gfxTimer = setInterval(refreshGraphics, 1000 / 60.0);
+	sysRunning = true;
+}
+
+function pauseSys() {
+	clearInterval(timer);
+	//clearInterval(gfxTimer);
+	sysRunning = false;
+}
 </script>
 
 </body>

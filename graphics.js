@@ -24,7 +24,8 @@ function initGraphics(){
 }
 
 function drawBNtree() {
-	if (root && SHOW_BN_TREE) drawBNnode(root,0);
+	return;
+	//if (root && SHOW_BN_TREE) drawBNnode(root,0);
 }
 function drawBNnode(node, depth) {
 	if (node.elements && depth <= BN_DRAW_DEPTH) {
@@ -55,11 +56,11 @@ function drawBNnode(node, depth) {
 // Updates text on html page
 function updateData() {
 	timeDisp.value = T.toFixed(2); // Update time output form
-	var bruteHalfChecks = bods.length*(bods.length-1)/2; // what efficient Brute Force checks would be
-	bodyCounter.innerHTML = bods.length;
+	var bruteHalfChecks = bodies.length*(bodies.length-1)/2; // what efficient Brute Force checks would be
+	bodyCounter.innerHTML = bodies.length;
 
 	data.innerHTML = "<p><b>System "+(sysRunning?"Running":"Paused")+"</b><br/>\n\
-		Bodies: "+bods.length+"<br/>\n\
+		Bodies: "+bodies.length+"<br/>\n\
 		Force calculations per step: "+stats.checks+"<br/>\n\
 		</p>";
 
@@ -92,9 +93,9 @@ function updateData() {
 	if (DEBUG>=1) {
 		data.innerHTML += "<ul>";
 		var i;
-		for(i=0;i<bods.length;i++){
+		for(i=0;i<bodies.length;i++){
 			data.innerHTML += "<li> B"+i+" : Pos "+
-				bods[i].x.toFixed(2)+", "+bods[i].y.toFixed(2)+
+				bodies[i].x.toFixed(2)+", "+bodies[i].y.toFixed(2)+
 				" </li>";
 		}
 		data.innerHTML += "</ul>";
@@ -102,7 +103,7 @@ function updateData() {
 }
 
 // Updates graphics in Canvas
-function refreshGraphics() {
+function refreshGraphics(stats) {
 	var startTime = new Date().getTime();
 
 	c.clearRect(0, 0, canvas.width, canvas.height);
@@ -114,23 +115,23 @@ function refreshGraphics() {
 
 	var com = {x: 0, y: 0, m: 0}; // Center of mass of sys
 
-	for(var i = 0; i < bods.length; i++){
-		drawCircle(bods[i].x,bods[i].y,massToRadius(bods[i].m));
+	for(var i = 0; i < bodies.length; i++){
+		drawCircle(bodies[i].x,bodies[i].y,massToRadius(bodies[i].m));
 		// Velocity arrow (Green)
 		if (drawArrows) {
-			drawArrow(bods[i].x,
-				bods[i].y,
-				bods[i].x+bods[i].v.x,
-				bods[i].y+bods[i].v.y,'',"#0f0");
+			drawArrow(bodies[i].x,
+				bodies[i].y,
+				bodies[i].x+bodies[i].v.x,
+				bodies[i].y+bodies[i].v.y,'',"#0f0");
 			// Acceleration arrow (Red)
-			drawArrow(bods[i].x,
-				bods[i].y,
-				bods[i].x+bods[i].a.x,
-				bods[i].y+bods[i].a.y,5,"#f00");
+			drawArrow(bodies[i].x,
+				bodies[i].y,
+				bodies[i].x+bodies[i].a.x,
+				bodies[i].y+bodies[i].a.y,5,"#f00");
 		}
-		com.x += bods[i].x*bods[i].m;
-		com.y += bods[i].y*bods[i].m;
-		com.m += bods[i].m;
+		com.x += bodies[i].x*bodies[i].m;
+		com.y += bodies[i].y*bodies[i].m;
+		com.m += bodies[i].m;
 	}
 
 	// Draw Center of Mass
@@ -144,7 +145,7 @@ function refreshGraphics() {
 	// Draw BNtree
 	drawBNtree();
 
-	updateData();
+	updateData(stats);
 
 	displayStepTime = new Date().getTime() - startTime;
 }
@@ -165,8 +166,8 @@ function drawBox(x,y,w,h) {
 
 // x,y center with radius r
 function drawCircle(x,y,r) {
-	c.strokeStyle = '#f00';
-	c.fillStyle = '#fff';
+	c.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+	c.fillStyle = 'transparent';
 	c.lineWidth = "1";
 	c.beginPath();
 	c.arc(x,y,r,0,Math.PI*2,true); 

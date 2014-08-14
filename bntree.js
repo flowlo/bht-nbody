@@ -36,7 +36,6 @@ var DEBUGMAX = 5; // Levels of DEBUG
 // var ETA = 0.01; // Softening constant
 // var GFACTOR = 1.3; // Higher means distance has more effect (3 is reality)
 // var dt; // Global DT set by html
-// var MAXDEPTH = 50; // BN tree max depth ( one less than actual, example with maxdepth = 2, the levels are [0 1 2] )
 // var BN_THETA = 0.5;
 // var DISTANCE_MULTIPLE = 1e9; // # meters per pixel (ex 1, 1 meter per pixel)
 // 1e3 = km, 1e6 = Mm, 1e9 = Gm, 149.60e9 = Au, 9.461e15 = LightYear, 30.857e15 = Parsec
@@ -47,24 +46,16 @@ var GFACTOR = 1.3; // Higher means distance has more effect (3 is reality)
 var DISTANCE_MULTIPLE = 2;
 
 var INTERACTION_METHOD = "BN"; // BN or BRUTE, type of tree search to use
-var MAXDEPTH = 50; // BN tree max depth ( one less than actual, example with maxdepth = 2, the levels are [0 1 2] )
 var BN_THETA = 0.5;
 
 var dt; // Global DT set by html
 // Bodies struct containing all bodies
 var bods = [];
 
-// Canvas Context
-var c;
-
 var root;
 
 var m = { min: 0, max: 1e10 };
-
-function initBN(id) {
-	canvasElement = document.getElementById(id);
-	c = canvasElement.getContext("2d");
-}
+var stats = { enabled: true, depth: 0, nodes: 0, leaves: 0, checks: 0 };
 
 function addNrandomBodies(n) {
 	for (var i = 0; i < n; i++)
@@ -75,8 +66,8 @@ function addNrandomBodies(n) {
 
 function addRandomBody() {
 	addBody({
-		x: Math.random() * canvasElement.width,
-		y: Math.random() * canvasElement.height,
+		x: Math.random() * canvas.width,
+		y: Math.random() * canvas.height,
 		v: {
 			x: Math.random() * 10 - 5,
 			y: Math.random() * 10 - 5,
@@ -86,169 +77,135 @@ function addRandomBody() {
 }
 
 function addBody(body) {
-	body.a = { x: 0, y: 0 };
+	if (!body.v || !body.v.x || !body.v.y)
+		body.v = { x: 0, y: 0 };
+
+	if (!body.a || !body.a.x || !body.a.y)
+		body.a = { x: 0, y: 0 };
+
 	bods.push(body);
 
 	if (!sysRunning) bnBuildTree();
 }
-// BN Tree code ------
-var bnDepth=0, bnNumNodes=0, bnNumLeafs=0;
-function bnSetTreeStats() {
-	bnDepth=0, bnNumNodes=0, bnNumLeafs=0;
-	bnSetTreeStatsRecurse(root, 0);
-}
 
-function bnSetTreeStatsRecurse(node, depth) {
+function collect(node, depth) {
 	if (!node) return;
 
-	// If body in node
-	bnNumNodes += 1;
-	bnDepth = Math.max(depth, bnDepth);
+	stats.nodes++;
+	stats.depth = Math.max(depth, stats.depth);
 
-	if (!node.b.length) return;
+	stats.leaves += node.leaf;
 
-	if (node.b != "PARENT")
-		bnNumLeafs += 1;
-
-	for (var i = 0; i < 4; i++)
-		bnSetTreeStatsRecurse(node.nodes[i], depth + 1);
+	for (var i = 0; i < 4 && !node.leaf; i++)
+		collect(node.elements[i], depth + 1);
 }
 
-function bnDeleteNode(node) {
+function free(node) {
 	if (!node) return;
 
-	delete node.b;
+	if (!node.leaf) node.elements.forEach(free);
+
+	delete node.elements;
 	delete node.box;
-	node.nodes.forEach(bnDeleteNode);
-	delete node.nodes;
 }
 
 function bnBuildTree() {
-	bnDeleteNode(root);
+	free(root);
 
 	root = {
-		b: [],
+		elements: [],
 		leaf: true,
-		nodes: [],
 		box: {
-			x: { min: 0, max: canvasElement.width },
-			y: { min: 0, max: canvasElement.height }
+			x: { min: 0, max: canvas.width },
+			y: { min: 0, max: canvas.height }
 		}
 	};
-	
-	// Add each body to tree
+
 	for (var i = 0; i < bods.length; i++)
 		if (bods[i].x >= root.box.x.min && bods[i].x <= root.box.x.max && bods[i].y >= root.box.y.min && bods[i].y <= root.box.y.max)
-			bnAddBody(root, i, 0);
+			bnAddBody(root, i);
 
-	bnSetTreeStats(); // Update bn tree stats
+	if (stats.enabled) {
+		stats.depth = 0;
+		stats.nodes = 0;
+		stats.leaves = 0;
+		collect(root, 0);
+	}
 }
 
-function bnAddBody(node,i,depth) {
-	if (!node.b.length) {
-		node.b = [ i ];
+function bnAddBody(node, i) {
+	if (node.elements.length === 0) {
+		node.elements = [ i ];
 		node.com = { m: bods[i].m, x: bods[i].x, y: bods[i].y };
 		return;
 	}
 
-	// Check if hit max depth
-	if (depth > MAXDEPTH) {
-		node.b.push(i); // Add body to same node since already at max depth
+	var quad = (bods[i].x >= (node.box.x.min + node.box.x.max) / 2)
+	         + (bods[i].y >= (node.box.y.min + node.box.y.max) / 2) * 2;
+
+	if (node.elements[quad] && !node.leaf) {
+		bnAddBody(node.elements[quad], i);
 	} else {
-		var subBodies;
-		if (!node.leaf) { // Same as saying node.b = "PARENT"
-			// Node is a parent with children
-			subBodies = [ i ];
-		} else {
-			// Node is a leaf node (no children), turn to parent
-			subBodies = [ node.b, i ];
+		var child = {
+			elements: [ i ],
+			leaf: true,
+			com : { m: bods[i].m, x: bods[i].x, y: bods[i].y }
+		};
+
+		if (quad === 0) {
+			child.box = {
+				x: { min: node.box.x.min, max: (node.box.x.min + node.box.x.max) / 2 },
+				y: { min: node.box.y.min, max: (node.box.y.min + node.box.y.max) / 2 }
+			};
+		} else if (quad === 1) {
+			child.box = {
+				x: { min: (node.box.x.min + node.box.x.max) / 2, max: node.box.x.max },
+				y: { min: node.box.y.min, max: (node.box.y.min + node.box.y.max) / 2 }
+			};
+		} else if (quad === 2) {
+			child.box = {
+				x: { min: node.box.x.min, max: (node.box.x.min + node.box.x.max) / 2 },
+				y: { min: (node.box.y.min + node.box.y.max) / 2, max: node.box.y.max }
+			};
+		} else if (quad === 3) {
+			child.box = {
+				x: { min: (node.box.x.min + node.box.x.max) / 2, max: node.box.x.max },
+				y: { min: (node.box.y.min + node.box.y.max) / 2, max: node.box.y.max }
+			};
 		}
-		for (var k = 0; k < subBodies.length; k++) {
-			// Add body to children too		
-			var quad = getQuad(subBodies[k], node.box);
-			var child = node.nodes[quad];
-			if (child) {
-				// if quad has child, recurse with child
-				bnAddBody(child, subBodies[k], depth + 1);
-			} else {
-				// else add body to child
-				node = bnMakeNode(node, quad, subBodies[k]);
-			}
+
+		if (node.leaf) {
+			node.leaf = false;
+			node.elements = [];
 		}
-		node.b = [ "PARENT" ];
-		node.leaf = false; // Always going to turn into a parent if not already
+		node.elements[quad] = child;
 	}
-	// Update center of mass
+
 	node.com.x = (node.com.x * node.com.m + bods[i].x * bods[i].m) / (node.com.m + bods[i].m);
 	node.com.y = (node.com.y * node.com.m + bods[i].y * bods[i].m) / (node.com.m + bods[i].m);
 	node.com.m += bods[i].m;
-}
-
-function getQuad(i, box) {
-	return (bods[i].x >= (box.x.min + box.x.max) / 2) + (bods[i].y >= (box.y.min + box.y.max) / 2) * 2;
-}
-
-function bnMakeNode(parent, quad, child) {
-	var child = {
-		b: [ child ],
-		leaf: true,
-		com : { m: bods[child].m, x: bods[child].x, y: bods[child].y }, // Center of Mass set to the position of single body
-		nodes: [],
-	};
-
-	switch (quad) {
-		case 0: // Top Left
-			child.box = {
-				x: { min: parent.box.x.min, max: (parent.box.x.min + parent.box.x.max) / 2 },
-				y: { min: parent.box.y.min, max: (parent.box.y.min + parent.box.y.max) / 2 }
-			};
-			break;
-		case 1: // Top Right
-			child.box = {
-				x: { min: (parent.box.x.min + parent.box.x.max) / 2, max: parent.box.x.max },
-				y: { min: parent.box.y.min, max: (parent.box.y.min + parent.box.y.max) / 2 }
-			};
-			break;
-		case 2: // Bottom Left
-			child.box = {
-				x: { min: parent.box.x.min, max: (parent.box.x.min + parent.box.x.max) / 2 },
-				y: { min: (parent.box.y.min + parent.box.y.max) / 2, max: parent.box.y.max }
-			};
-			break;
-		case 3: // Bottom Right
-			child.box = {
-				x: { min: (parent.box.x.min + parent.box.x.max) / 2, max: parent.box.x.max },
-				y: { min: (parent.box.y.min + parent.box.y.max) / 2, max: parent.box.y.max }
-			};
-			break;
-	}
-	parent.nodes[quad] = child;
-	return parent;
 }
 
 function doBNtreeRecurse(bI,node) {
 	if (!node) return;
 
 	if (node.leaf) {
-		// If node is a leaf node
-		for (var k = 0; k < node.b.length; k++) {
-			if (bI != node.b[k]) {
-				setAccel(bI, node.b[k], false);
-				numChecks += 1;
-			}
-		}
-	} else {
-		var s = Math.min(node.box.x.max-node.box.x.min, node.box.y.max-node.box.y.min); // Biggest side of box
-		var d = distance(bods[bI], node.com);
-		if (s / d < BN_THETA) {
-			setAccelDirect(bI,node.com)
-			numChecks += 1;
-		} else {
-			// Not performant:
-			// node.nodes.forEach(doBNtreeRecurse.bind(this, bI));
+		stats.checks += node.elements.length;
 
+		for (var k = 0; k < node.elements.length; k++)
+			if (bI != node.elements[k])
+				setAccel(bI, node.elements[k], false);
+	} else {
+		var s = Math.min(node.box.x.max - node.box.x.min,
+		                 node.box.y.max - node.box.y.min),
+		    d = distance(bods[bI], node.com);
+
+		if (s / d < BN_THETA) {
+			setAccelDirect(bI, node.com)
+			stats.checks++;
+		} else {
 			for (var k = 0; k < 4; k++)
-				doBNtreeRecurse(bI, node.nodes[k]);
+				doBNtreeRecurse(bI, node.elements[k]);
 		}
 	}
 }
@@ -260,11 +217,10 @@ function distance(a, b) {
 // Update accelerations using BN tree
 function forceBNtree() {
 	bnBuildTree(); // Build BN tree based on current pos
-	numChecks = 0;
-	for (var i = 0; i < bods.length; i++) {
-		// For each body
+	stats.checks = 0;
+
+	for (var i = 0; i < bods.length; i++)
 		doBNtreeRecurse(i, root);
-	}
 }
 
 function setAccel(i, j, both) {
@@ -282,41 +238,30 @@ function setAccel(i, j, both) {
 	}
 }
 function setAccelDirect(i, other) {
-	// Set's accel according to given mass
-
-	// get Force Vector between body i
-	// and a virtual mass
-	//   with mass m, at position cx,cy
 	var F = getForceVecDirect(bods[i], other);
-	
-	// Update acceleration of body
+
 	bods[i].a.x += F.x / bods[i].m;
 	bods[i].a.y += F.y / bods[i].m;
 }
 
 function getForceVecDirect(a, b) {
-	// Determines force interaction between
-	// bods[i] and bods[j], an adds to bods[i]
 	var dx = b.x - a.x;
 	var dy = b.y - a.y;
 	var r = (distance(a, b) + ETA) * DISTANCE_MULTIPLE;
-	// F_{x|y} = d_{x|y}/r * G*M*m/r.^3;
+	// F_{x|y} = d_{x|y} / r * G * M * m / r^3
 	var F = G * a.m * b.m / Math.pow(r, GFACTOR + 1);
 
 	return { x: F * dx, y: F * dy };
 }
 
 function forceBrute() {
-	// This should be asymptotically close enough.
-	numChecks = Math.pow(bods.length, 2) / 2;
+	stats.checks = bods.length * (bods.length - 1) / 2;
 
 	for (var i = 0; i < bods.length; i++)
 		for (var j = i + 1; j < bods.length; j++)
 			setAccel(i, j);
 }
 
-
-var numChecks;
 // Set accelerations of bodies based on gravity
 function doForces() {
 	// Zero accelerations

@@ -85,10 +85,13 @@
 <p>Check out the <a href="https://github.com/Elucidation/Barnes-Hut-Tree-N-body-Implementation-in-HTML-Js">Source Code</a> on GitHub.</p>
 
 <script>
+var canvas = document.getElementById('bnCanvas'),
+    data = document.getElementById('data');
+var c = canvas.getContext('2d');
+
 drawArrows = false;
-initBN("bnCanvas");
-initGraphics("bnCanvas","data");
-initUI("bnCanvas");
+initGraphics();
+initUI();
 initFileIO();
 </script>
 

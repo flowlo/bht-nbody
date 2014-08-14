@@ -18,51 +18,35 @@ var c;
 var gfxTimer=0;
 var displayStepTime;
 
-function initGraphics(canvasId,dataId){
-	canvasElement = document.getElementById(canvasId);
-	c = canvasElement.getContext("2d");
-	data = document.getElementById(dataId);
+function initGraphics(){
 	timeDisp = document.getElementById('timeDisp');
 	bodyCounter = document.getElementById('bodyCount');
-
-	//gfxTimer = setInterval(refreshGraphics,1/60.0*1000);
-
-	if (DEBUG) {
-		console.log('Initialize Graphics complete.');
-	}
 }
-
-// Main Drawing --------------------------
 
 function drawBNtree() {
 	if (root && SHOW_BN_TREE) drawBNnode(root,0);
 }
-function drawBNnode(node,depth) {
-	// If body in node
-	if ( typeof(node.b) != 'undefined' && depth <= BN_DRAW_DEPTH) {
+function drawBNnode(node, depth) {
+	if (node.elements && depth <= BN_DRAW_DEPTH) {
 		// Draw Node
-		drawBBOX(node.box[0],node.box[1],
-			node.box[2],node.box[3]);
+		drawBBOX(node.box.x.min, node.box.y.min, node.box.x.max, node.box.y.max);
 		c.textBaseline = 'top';
 		
-		if(DEBUG >= 1) {
+		if (DEBUG >= 1) {
 			// Draw Center of Mass
-			c.strokeStyle = '#f00';
-			c.lineWidth = "0.5";
-			drawCross(node.CoM[1],node.CoM[2],5);
+			c.strokeStyle = 'red';
+			c.lineWidth = 0.2;
+			drawCross(node.com.x, node.com.y, 5);
 		}
 
-		if (node.b != "PARENT" && depth <= BN_DRAW_TEXT_DEPTH) {
-			c.font = "6pt Courier New";
+		/*if (!node.leaf && depth <= BN_DRAW_TEXT_DEPTH) {
+			c.font = "8pt Courier New";
 			c.fillStyle = "#090";
-			c.fillText('B:['+node.b.join(" ")+"]",node.box[0]+1,node.box[1]+1)
-		}
-		// Draw Children
-		for (var i=0;i<4;i++){
-			var child = node.nodes[i];
-			//console.log("B",node.b,": C",i," ",child);
-
-			if (child) { drawBNnode( child , depth+1); }
+			c.fillText(JSON.stringify(node.elements), node.box.x.min + 1, node.box.y.min + 1)
+		}*/
+		for (var i = 0; i < 4; i++){
+			var child = node.elements[i];
+			if (child) drawBNnode(child, depth + 1);
 		}
 	}
 }
@@ -76,33 +60,33 @@ function updateData() {
 
 	data.innerHTML = "<p><b>System "+(sysRunning?"Running":"Paused")+"</b><br/>\n\
 		Bodies: "+bods.length+"<br/>\n\
-		Force calculations per step: "+numChecks+"<br/>\n\
+		Force calculations per step: "+stats.checks+"<br/>\n\
 		</p>";
 
-	if (INTERACTION_METHOD=="BN") {
+	if (INTERACTION_METHOD === "BN") {
 		data.innerHTML += "\n\
 			<p>\n\
 			<b>BN Tree</b>\n\
-			Depth: "+bnDepth+"<br/>\n\
-			Nodes: "+bnNumNodes+"<br/>\n\
-			Leafs: "+bnNumLeafs+"<br/>\n\
+			Depth: " + stats.depth + "<br />\n\
+			Nodes: " + stats.nodes + "<br />\n\
+			Leaves: " + stats.leaves + "<br />\n\
 			</p>\n\
 			<p>\n\
 			<b>Number of Calculations</b><br/>\n\
-			BN Tree: "+numChecks+"<br/>\n\
-			Brute Force: "+bruteHalfChecks+"<br/>\n\
+			BH-Tree: "+ stats.checks + " O(nlogn)<br/>\n\
+			Brute force: "+bruteHalfChecks+" O(n&sup2;)<br/>\n\
 			</p>\n\
 			<p>\n\
-			Speedup : "+(100*(1-numChecks/bruteHalfChecks)).toFixed(2)+"%<br/>\n\
+			Speedup : "+(100*(1-stats.checks/bruteHalfChecks)).toFixed(2)+"%<br/>\n\
 			</p>"
 	}
 
-		data.innerHTML += "\n\
-			<p>\n\
-			<b>Time per step</b><br/>\n\
-			Compute : "+stepTime+"ms<br/>\n\
-			Display : "+displayStepTime+"6ms<br/>\n\
-			</p>";
+	data.innerHTML += "\n\
+		<p>\n\
+		<b>Time per step</b><br/>\n\
+		Compute : "+stepTime+"ms<br/>\n\
+		Display : "+displayStepTime+"6ms<br/>\n\
+		</p>";
 
 	
 	if (DEBUG>=1) {
@@ -119,19 +103,18 @@ function updateData() {
 
 // Updates graphics in Canvas
 function refreshGraphics() {
-	var startTime = (new Date()).getTime();
+	var startTime = new Date().getTime();
 
-	c.clearRect(0,0,canvasElement.width,canvasElement.height);
+	c.clearRect(0, 0, canvas.width, canvas.height);
 
 	if (drag.is) {
-		drawCircle(dragx,dragy,massToRadius(dragm));
-		drawArrow(dragx,dragy,dragx2,dragy2);
+		drawCircle(drag.x, drag.y, massToRadius(drag.m));
+		drawArrow(drag.x, drag.y, drag.x2, drag.y2);
 	}
 
-	com = {x:0,y:0}; // Center of mass of sys
-	var allMass = 0;
+	var com = {x: 0, y: 0, m: 0}; // Center of mass of sys
 
-	for(var i=0;i<bods.length;i++){
+	for(var i = 0; i < bods.length; i++){
 		drawCircle(bods[i].x,bods[i].y,massToRadius(bods[i].m));
 		// Velocity arrow (Green)
 		if (drawArrows) {
@@ -147,28 +130,27 @@ function refreshGraphics() {
 		}
 		com.x += bods[i].x*bods[i].m;
 		com.y += bods[i].y*bods[i].m;
-		allMass += bods[i].m;
+		com.m += bods[i].m;
 	}
 
 	// Draw Center of Mass
-	com.x /= allMass;
-	com.y /= allMass;
+	com.x /= com.m;
+	com.y /= com.m;
 
-	c.strokeStyle = '#00f';
-	c.lineWidth = "1";
-	drawCross(com.x,com.y);
+	c.strokeStyle = 'blue';
+	c.lineWidth = 1;
+	drawCross(com.x, com.y);
 
 	// Draw BNtree
 	drawBNtree();
 
 	updateData();
 
-	displayStepTime = (new Date()).getTime()-startTime;
+	displayStepTime = new Date().getTime() - startTime;
 }
 
 function massToRadius(mass) {
 	return MINRADIUS+(mass-m.min)/(m.max-m.min)*(MAXRADIUS-MINRADIUS);
-	
 }
 
 // Simple Shapes --------------------------

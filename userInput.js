@@ -1,11 +1,10 @@
 // User Input Stuff
 // Introduce new body to system at mouse position
-function initUI(canvasId){
-	canvasElement = document.getElementById(canvasId);
-	//canvasElement.onclick = mouseClick;
-	canvasElement.onmousedown = mouseDown;
-	canvasElement.onmouseup = mouseUp;
-	canvasElement.onmousemove	 = mouseMove;
+function initUI(){
+	//canvas.onclick = mouseClick;
+	canvas.onmousedown = mouseDown;
+	canvas.onmouseup = mouseUp;
+	canvas.onmousemove	 = mouseMove;
 	if (DEBUG) {
 		console.log("Initialize UI complete.");
 	}

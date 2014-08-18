@@ -120,15 +120,21 @@ function drawBody(body) {
 	    max = tmp / 10;
 
 	var r = min + (body.m - m.min) / (m.max - m.min) * (max - min);
-	var ratio = (body.v.magnitude - v.min) / (v.max - v.min);
-	var color = 320 - (ratio * 320);
 
-	c.fillStyle = 'hsla(' + color + ', 100%, 50%, ' + ratio + ')';
-	c.lineWidth = 2;
+	// FIXME This is not very nice
+	if (bodies.length > 5) {
+		var ratio = (body.v.magnitude - v.min) / (v.max - v.min);
+		var color = 320 - (ratio * 320);
+
+		c.fillStyle = 'hsla(' + color + ', 100%, 50%, ' + ratio + ')';
+	} else {
+		c.strokeStyle = 'red';
+	}
+	c.lineWidth = 1;
 	c.beginPath();
 	c.arc(body.x, body.y, r, 0, Math.PI * 2, true); 
 	c.closePath();
-	c.fill();
+	bodies.length > 5 ? c.fill() : c.stroke();
 }
 
 function drawArrow(x, y, x2, y2, color, h) {

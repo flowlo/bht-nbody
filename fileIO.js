@@ -40,22 +40,20 @@ function errorHandler(evt) {
 }
 
 function loadSysFromJSON(jsData) {
-	if (jsData.m && jsData.m.min !== undefined && jsData.m.max !== undefined) {
-		m = jsData.m;
-	} else if (jsData.Constants && jsData.Constants.MINMASS !== undefined && jsData.Constants.MAXMASS !== undefined) {
+	if (jsData.Constants) {
 		m.min = jsData.Constants.MINMASS;
-		m.max = jsData.Constants.MINMASS;
-	}
-	if (jsData.G) {
-		G = jsData.G;
-	} else if (jsData.Constants && jsData.Constants.G !== undefined) {
-		G = jsData.Constants.G;
+		m.max = jsData.Constants.MAXMASS;
+		options.tree.g = jsData.Constants.G;
+		options.tree.exp = jsData.Constants.GFACTOR;
+		options.tree.eta = jsData.Constants.ETA;
+	} else {
+		m = jsData.m;
+		options.tree.g = jsData.g;
+		options.tree.exp = jsData.exp;
+		options.tree.eta = jsData.eta;
 	}
 
-	GFACTOR = jsData.Constants.GFACTOR || GFACTOR;
-	ETA = jsData.Constants.ETA || ETA;
-	
-	var bodies, lenght;
+	var bodies, length;
 	if (jsData.bodies) {
 		bodies = jsData.bodies;
 		length = bodies.length;

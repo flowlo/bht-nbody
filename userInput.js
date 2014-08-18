@@ -96,6 +96,7 @@ function toggleShowBNtree() {
 
 function resetSys() {
 	bodies = [];
+	T = 0;
 	render();
 	sysRunning = false;
 }

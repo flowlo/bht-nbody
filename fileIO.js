@@ -1,15 +1,4 @@
-function initFileIO() {
-	// Check for the various File API support.
-	if (!(window.File && window.FileReader && window.FileList && window.Blob)) {
-	  alert('The File APIs are not fully supported in this browser.');
-	  return -1;
-	}
-	if (DEBUG) {console.log('Initialize File IO complete.');}
-
-	document.getElementById('fileInputs').addEventListener('change', handleFileSelect, false);
-}
-var JSONdata;
-function handleFileSelect(evt) {
+window.onload = function () { document.querySelector('input[type=file]').addEventListener('change', function(evt) {
 	var files = evt.target.files; // FileList object
 
 	// files is a FileList of File objects. List some properties.
@@ -22,29 +11,15 @@ function handleFileSelect(evt) {
 		var reader = new FileReader();
 
 		reader.onload = function(e) {
-			var text = e.target.result;
-			try {
-				jsData = JSON.parse(text);
-			}
-			catch(e) {
-				ERROR = e; // For console access
-				alert('Couldn\'t Parse JSON from file : ',e.name,' : ',e.message);
-				console.log('ERROR parsing: ',e.name,' : ',e.message);
-				return -1;
-			}
-			
-			loadSysFromJSON(jsData);
-			if (DEBUG) {
-				console.log("JSON FILE LOADED: ",jsData.name)
-			}
+			loadSysFromJSON(JSON.parse(e.target.result));
 		};
-		reader.onerror = errorHandler;
 
+		reader.onerror = errorHandler;
 		reader.readAsText(f);
-		
 	}
 	document.getElementById('fileList').innerHTML = '<ul>' + output.join('') + '</ul>';
-}
+}, false);
+};
 
 function errorHandler(evt) {
 	switch(evt.target.error.code) {
@@ -62,42 +37,46 @@ function errorHandler(evt) {
 		default:
 			alert('An error occurred reading this file.');
 	};
-	if (DEBUG) {
-		console.log("FILE LOADED UNSUCCESSFULLY: Error Code ",evt.target.error.code);
-	}
 }
 
-function loadSysFromJSON(jsonData) {
-	// Constants
-	MINMASS = jsData.Constants.MINMASS || MINMASS;
-	MAXMASS = jsData.Constants.MAXMASS || MAXMASS;
-	G = jsData.Constants.G || G;
-	GFACTOR = jsData.Constants.GFACTOR || GFACTOR;
-	ETA = jsData.Constants.ETA || ETA;
-	if (DEBUG) {
-		console.log('MINMASS: ',MINMASS);
-		console.log('MAXMASS: ',MAXMASS);
-		console.log('G: ',G);
-		console.log('GFACTOR: ',GFACTOR);
-		console.log('ETA: ',ETA);
+function loadSysFromJSON(jsData) {
+	if (jsData.m && jsData.m.min !== undefined && jsData.m.max !== undefined) {
+		m = jsData.m;
+	} else if (jsData.Constants && jsData.Constants.MINMASS !== undefined && jsData.Constants.MAXMASS !== undefined) {
+		m.min = jsData.Constants.MINMASS;
+		m.max = jsData.Constants.MINMASS;
+	}
+	if (jsData.G) {
+		G = jsData.G;
+	} else if (jsData.Constants && jsData.Constants.G !== undefined) {
+		G = jsData.Constants.G;
 	}
 
-	// Bodies
-	for (var i = 0; i < jsData.bodies.length; i++) {
-		var item = jsData.bodies[i];
-		if (Array.isArray(item)) {
+	GFACTOR = jsData.Constants.GFACTOR || GFACTOR;
+	ETA = jsData.Constants.ETA || ETA;
+	
+	var bodies, lenght;
+	if (jsData.bodies) {
+		bodies = jsData.bodies;
+		length = bodies.length;
+	} else if (jsData.Bodies && jsData.Bodies.N && jsData.Bodies.BodyData) {
+		bodies = jsData.Bodies.BodyData;
+		length = jsData.Bodies.N;
+	}
+
+	for (var i = 0; i < length; i++) {
+		var item = bodies[i];
+		Array.isArray(item) ?
 			addBody({
 				m: item[0],
 				x: item[1],
 				y: item[2],
-				v: {
-					x: item[3],
-					y: item[4]
-				}
-			});
-		} else {
-			addBody(item);
-		}
+				v: { x: item[3], y: item[4] },
+				a: { x: 0, y: 0 }
+			})
+		:
+			addBody(item)
+		;
 	}
-	refreshGraphics();
+	render();
 }

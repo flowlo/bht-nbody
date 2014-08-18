@@ -27,48 +27,43 @@ of the authors and should not be interpreted as representing official policies,
 either expressed or implied, of the FreeBSD Project.
 */
 
-// Reality
-// var m = { min: 1e20, max: 1e30 };
-// var G = 6.673e-11; // Gravitational Constant
-// var ETA = 0.01; // Softening constant
-// var GFACTOR = 1.3; // Higher means distance has more effect (3 is reality)
-// var dt; // Global DT set by html
-// var BN_THETA = 0.5;
-// var DISTANCE_MULTIPLE = 1e9; // # meters per pixel (ex 1, 1 meter per pixel)
-// 1e3 = km, 1e6 = Mm, 1e9 = Gm, 149.60e9 = Au, 9.461e15 = LightYear, 30.857e15 = Parsec
-var G = 1e-5; // Gravitational Constant
-var ETA = 10; // Softening constant
-var GFACTOR = 1.3; // Higher means distance has more effect (3 is reality)
+/**
+ * Options:
+ *  width
+ *  height
+ *  theta   Opening angle used to adjust the accuracy of the force calculation. Values less than one produce more accurate forces, but are more expensive.
+ *  g       Gravitational Constant (6.673e-11 is reality)
+ *  eta     Softening Constant
+ *  exp     Exponent of the radius when calculating gravity. (2 is reality)
+ *  mpp     Meters per pixel (1 = m, 149.60e9 = Au, 9.461e15 = LightYear, 30.857e15 = Parsec)
+ */
+function BHTree(bodies, options) {
+	options.g = options.g || 1e-5;
+	options.mpp = options.mpp || 2;
+	options.theta = options.theta || 0.5;
+	options.eta = options.eta || 10;
+	options.exp = options.exp || 2.3;
+	
+	this.options = options;
 
-var DISTANCE_MULTIPLE = 2;
-
-var INTERACTION_METHOD = "BN"; // BN or BRUTE, type of tree search to use
-var BN_THETA = 0.5;
-
-var dt;
-var m = { min: 0, max: 1e10 };
-
-DEBUG = 0;
-
-function BHTree(width, height, bodies, stats) {
-	this.stats = { enabled: true, depth: 0, nodes: 0, leaves: 0, checks: 0 };
+	this.stats = { depth: 0, nodes: 0, leaves: 0, checks: 0 };
 	this.root = {
 		elements: [],
 		leaf: true,
 		box: {
-			x: { min: 0, max: width },
-			y: { min: 0, max: height }
+			x: { min: 0, max: options.width },
+			y: { min: 0, max: options.height }
 		}
 	};
 
 	for (var i = 0; i < bodies.length; i++)
-		if (bodies[i].x >= 0 && bodies[i].x <= width && bodies[i].y >= 0 && bodies[i].y <= height)
+		if (bodies[i].x >= 0 && bodies[i].x <= options.width && bodies[i].y >= 0 && bodies[i].y <= options.height)
 			this.bnAddBody(this.root, i);
 
 	for (var i = 0; i < bodies.length; i++)
 		this.doBNtreeRecurse(i, this.root);
 
-	if (stats) this.collect(this.root, 0);
+	if (options.stats) this.collect(this.root, 0);
 };
 
 BHTree.prototype.collect = function(node, depth) {
@@ -149,7 +144,7 @@ BHTree.prototype.doBNtreeRecurse = function(bI, node) {
 	if (!node) return;
 
 	if (node.leaf) {
-		stats.checks += node.elements.length;
+		this.stats.checks += node.elements.length;
 
 		for (var k = 0; k < node.elements.length; k++)
 			if (bI != node.elements[k])
@@ -159,9 +154,9 @@ BHTree.prototype.doBNtreeRecurse = function(bI, node) {
 			         node.box.y.max - node.box.y.min),
 		    d = this.distance(bodies[bI], node.com);
 
-		if (s / d < BN_THETA) {
+		if (s / d < this.options.theta) {
 			this.setAccelDirect(bI, node.com)
-			stats.checks++;
+			this.stats.checks++;
 		} else {
 			for (var k = 0; k < 4; k++)
 				this.doBNtreeRecurse(bI, node.elements[k]);
@@ -174,7 +169,6 @@ BHTree.prototype.setAccel = function(i, j, both) {
 		both = true;
 
 	var F = this.getForceVecDirect(bodies[i], bodies[j]);
-
 	bodies[i].a.x += F.x / bodies[i].m;
 	bodies[i].a.y += F.y / bodies[i].m;
 
@@ -194,17 +188,11 @@ BHTree.prototype.setAccelDirect = function(i, other) {
 BHTree.prototype.getForceVecDirect = function(a, b) {
 	var dx = b.x - a.x;
 	var dy = b.y - a.y;
-	var r = (this.distance(a, b) + ETA) * DISTANCE_MULTIPLE;
-	// F_{x|y} = d_{x|y} / r * G * M * m / r^3
-	var F = G * a.m * b.m / Math.pow(r, GFACTOR + 1);
-
+	var r = (this.distance(a, b) + this.options.eta) * this.options.mpp;
+	var F = this.options.g * a.m * b.m / Math.pow(r, this.options.exp);
 	return { x: F * dx, y: F * dy };
 };
 
 BHTree.prototype.distance = function(a, b) {
 	return Math.sqrt(Math.pow(b.x - a.x, 2) + Math.pow(b.y - a.y, 2));
-};
-
-BHTree.prototype.getStats = function() {
-	return this.stats;
 };

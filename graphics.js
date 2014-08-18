@@ -1,187 +1,139 @@
 // Arrow Length Multipliers
-drawArrows = false; // Button edit
 arrowLengthRatio = 2;
 ARROWHEADSIZE = 5;
 
-// Circle Sizes
-var MINRADIUS = 1;
-var MAXRADIUS = 5;
-
-// Barnes-Hut Tree Graphics
-var SHOW_BN_TREE = false;
-var BN_DRAW_DEPTH = 10; // Depth to draw tree out to
-var BN_DRAW_TEXT_DEPTH = 4; // Depth to draw text of node bbox
-
-// Canvas Context
-var c;
-// Graphics refresh timer
-var gfxTimer=0;
 var displayStepTime;
+
+// var recording = [];
+
+var output = {
+	bodies: undefined,
+	depth: undefined,
+	checks: undefined,
+	leaves: undefined,
+	nodes: undefined,
+	brute: undefined,
+	speedup: undefined,
+	step: undefined,
+	display: undefined
+};
 
 function initGraphics(){
 	timeDisp = document.getElementById('timeDisp');
-	bodyCounter = document.getElementById('bodyCount');
-}
 
-function drawBNtree() {
-	return;
-	//if (root && SHOW_BN_TREE) drawBNnode(root,0);
-}
-function drawBNnode(node, depth) {
-	if (node.elements && depth <= BN_DRAW_DEPTH) {
-		// Draw Node
-		drawBBOX(node.box.x.min, node.box.y.min, node.box.x.max, node.box.y.max);
-		c.textBaseline = 'top';
+	for (var id in output)
+		output[id] = document.getElementById(id);
 		
-		if (DEBUG >= 1) {
-			// Draw Center of Mass
-			c.strokeStyle = 'red';
-			c.lineWidth = 0.2;
-			drawCross(node.com.x, node.com.y, 5);
-		}
+	canvas.width = window.innerWidth - 20;
+	canvas.height = window.innerHeight / 1.3;
 
-		/*if (!node.leaf && depth <= BN_DRAW_TEXT_DEPTH) {
-			c.font = "8pt Courier New";
-			c.fillStyle = "#090";
-			c.fillText(JSON.stringify(node.elements), node.box.x.min + 1, node.box.y.min + 1)
-		}*/
-		for (var i = 0; i < 4; i++){
-			var child = node.elements[i];
-			if (child) drawBNnode(child, depth + 1);
-		}
-	}
+	options.tree.width = canvas.width;
+	options.tree.height = canvas.height;
 }
 
+function drawBNnode(node, depth) {
+	if (!node.box) return;
 
-// Updates text on html page
-function updateData() {
+	drawBox(node.box);
+
+	for (var i = 0; i < 4; i++)
+		if (node.elements[i]) drawBNnode(node.elements[i], depth + 1);
+}
+
+function updateData(stats) {
 	timeDisp.value = T.toFixed(2); // Update time output form
-	var bruteHalfChecks = bodies.length*(bodies.length-1)/2; // what efficient Brute Force checks would be
-	bodyCounter.innerHTML = bodies.length;
 
-	data.innerHTML = "<p><b>System "+(sysRunning?"Running":"Paused")+"</b><br/>\n\
-		Bodies: "+bodies.length+"<br/>\n\
-		Force calculations per step: "+stats.checks+"<br/>\n\
-		</p>";
-
-	if (INTERACTION_METHOD === "BN") {
-		data.innerHTML += "\n\
-			<p>\n\
-			<b>BN Tree</b>\n\
-			Depth: " + stats.depth + "<br />\n\
-			Nodes: " + stats.nodes + "<br />\n\
-			Leaves: " + stats.leaves + "<br />\n\
-			</p>\n\
-			<p>\n\
-			<b>Number of Calculations</b><br/>\n\
-			BH-Tree: "+ stats.checks + " O(nlogn)<br/>\n\
-			Brute force: "+bruteHalfChecks+" O(n&sup2;)<br/>\n\
-			</p>\n\
-			<p>\n\
-			Speedup : "+(100*(1-stats.checks/bruteHalfChecks)).toFixed(2)+"%<br/>\n\
-			</p>"
-	}
-
-	data.innerHTML += "\n\
-		<p>\n\
-		<b>Time per step</b><br/>\n\
-		Compute : "+stepTime+"ms<br/>\n\
-		Display : "+displayStepTime+"6ms<br/>\n\
-		</p>";
-
-	
-	if (DEBUG>=1) {
-		data.innerHTML += "<ul>";
-		var i;
-		for(i=0;i<bodies.length;i++){
-			data.innerHTML += "<li> B"+i+" : Pos "+
-				bodies[i].x.toFixed(2)+", "+bodies[i].y.toFixed(2)+
-				" </li>";
-		}
-		data.innerHTML += "</ul>";
-	}
+	output.bodies.value = bodies.length;
+	output.checks.value = stats.checks;
+	output.depth.value = stats.depth;
+	output.nodes.value = stats.nodes;
+	output.leaves.value = stats.leaves;
+	output.brute.value = bruteHalfChecks;
+	output.speedup.value = (100 * (1 - stats.checks / bruteHalfChecks)).toFixed(2);
+	output.step.value = stepTime;
+	output.display.value = displayStepTime;
 }
 
-// Updates graphics in Canvas
-function refreshGraphics(stats) {
-	var startTime = new Date().getTime();
+function render(tree, force) {
+	var now = new Date().getTime();
 
 	c.clearRect(0, 0, canvas.width, canvas.height);
 
 	if (drag.is) {
-		drawCircle(drag.x, drag.y, massToRadius(drag.m));
-		drawArrow(drag.x, drag.y, drag.x2, drag.y2);
+		drawBody(drag);
+		drawArrow(drag.from.x, drag.from.y, drag.to.x, drag.to.y);
 	}
 
-	var com = {x: 0, y: 0, m: 0}; // Center of mass of sys
+	var com = { x: 0, y: 0, m: 0 };
 
-	for(var i = 0; i < bodies.length; i++){
-		drawCircle(bodies[i].x,bodies[i].y,massToRadius(bodies[i].m));
-		// Velocity arrow (Green)
-		if (drawArrows) {
+	for (var i = 0; i < bodies.length; i++){
+		drawBody(bodies[i]);
+		if (options.rendering.arrows) {
 			drawArrow(bodies[i].x,
-				bodies[i].y,
-				bodies[i].x+bodies[i].v.x,
-				bodies[i].y+bodies[i].v.y,'',"#0f0");
-			// Acceleration arrow (Red)
+				  bodies[i].y,
+				  bodies[i].x + bodies[i].v.x,
+				  bodies[i].y + bodies[i].v.y,
+				  'green');
+
 			drawArrow(bodies[i].x,
-				bodies[i].y,
-				bodies[i].x+bodies[i].a.x,
-				bodies[i].y+bodies[i].a.y,5,"#f00");
+				  bodies[i].y,
+				  bodies[i].x + bodies[i].a.x,
+				  bodies[i].y + bodies[i].a.y,
+				  'red');
 		}
-		com.x += bodies[i].x*bodies[i].m;
-		com.y += bodies[i].y*bodies[i].m;
+		com.x += bodies[i].x * bodies[i].m;
+		com.y += bodies[i].y * bodies[i].m;
 		com.m += bodies[i].m;
 	}
 
-	// Draw Center of Mass
 	com.x /= com.m;
 	com.y /= com.m;
 
+	c.strokeStyle = '#333';
+	c.lineWidth = 0.5;
+	drawCross(com);
+
+	if (tree) {
+		if (options.rendering.tree) drawBNnode(tree.root, 0);
+
+		updateData(tree.stats);
+	}
+
+	displayStepTime = new Date().getTime() - now;
+	
+	// recording.push(canvas.toDataURL());
+}
+
+function drawBox(box) {
+	var height = box.y.max - box.y.min,
+	     width = box.x.max - box.x.min;
+
 	c.strokeStyle = 'blue';
 	c.lineWidth = 1;
-	drawCross(com.x, com.y);
-
-	// Draw BNtree
-	drawBNtree();
-
-	updateData(stats);
-
-	displayStepTime = new Date().getTime() - startTime;
+	c.strokeRect(box.x.min, box.y.min, width, height);	
 }
 
-function massToRadius(mass) {
-	return MINRADIUS+(mass-m.min)/(m.max-m.min)*(MAXRADIUS-MINRADIUS);
-}
+function drawBody(body) {
+	var tmp = Math.min(canvas.width, canvas.height);
 
-// Simple Shapes --------------------------
-function drawBBOX(x,y,x2,y2) {
-	drawBox(x,y,x2-x,y2-y);
-}
-function drawBox(x,y,w,h) {
-	c.strokeStyle = '#00f';
-	c.lineWidth = "1";
-	c.strokeRect(x,y,w,h);	
-}
+	var min = tmp / 100,
+	    max = tmp / 10;
 
-// x,y center with radius r
-function drawCircle(x,y,r) {
-	c.strokeStyle = 'rgba(255, 0, 0, 0.8)';
-	c.fillStyle = 'transparent';
-	c.lineWidth = "1";
+	var r = min + (body.m - m.min) / (m.max - m.min) * (max - min);
+	var ratio = (body.v.magnitude - v.min) / (v.max - v.min);
+	var color = 320 - (ratio * 320);
+
+	c.fillStyle = 'hsla(' + color + ', 100%, 50%, ' + ratio + ')';
+	c.lineWidth = 2;
 	c.beginPath();
-	c.arc(x,y,r,0,Math.PI*2,true); 
+	c.arc(body.x, body.y, r, 0, Math.PI * 2, true); 
 	c.closePath();
-	c.stroke();
-	//c.fill();
+	c.fill();
 }
 
-// Arrow
-// x,y start to x2,y2 end
-// h = Arrow Head size
-function drawArrow(x,y,x2,y2,h,color) {
-	h = (typeof(h) != 'undefined' && h != '') ? h : ARROWHEADSIZE; // Default h
-	color = typeof(color) != 'undefined' ? color : '#0f0'; // Default color
+function drawArrow(x, y, x2, y2, color, h) {
+	h = h || 5;
+	color = color || 'green';
 
 	// Resize arrow based on arrowLengthRatio
 	// v = [x2-x,y2-y];
@@ -202,39 +154,36 @@ function drawArrow(x,y,x2,y2,h,color) {
 	// x2 = x + (x2-x)/d * arrowLength;
 	// y2 = y + (y2-y)/d * arrowLength;
 
-
 	c.strokeStyle = color;
 	c.fillStyle = color;
-	c.lineWidth = "0";
-
+	c.lineWidth = '0';
 	
 	// Line
 	c.beginPath();
 	c.moveTo(x,y);
 	c.lineTo(x2,y2);
 	c.closePath();
-    c.stroke();
+	c.stroke();
 
 	// Arrow head
-	var angle = Math.atan2(y2-y,x2-x);
+	var angle = Math.atan2(y2 - y, x2 - x);
 	c.beginPath();
-	c.moveTo(x2,y2);
-    c.lineTo(x2-h*Math.cos(angle-Math.PI/8),y2-h*Math.sin(angle-Math.PI/8));
-    c.lineTo(x2-h*Math.cos(angle+Math.PI/8),y2-h*Math.sin(angle+Math.PI/8));
-    c.lineTo(x2,y2);
-    c.closePath();
-    c.fill();
+	c.moveTo(x2, y2);
+	c.lineTo(x2 - h * Math.cos(angle - Math.PI / 8), y2 - h * Math.sin(angle - Math.PI / 8));
+	c.lineTo(x2 - h * Math.cos(angle + Math.PI / 8), y2 - h * Math.sin(angle + Math.PI / 8));
+	c.lineTo(x2, y2);
+	c.closePath();
+	c.fill();
 }
 
-// h = cross line width
-function drawCross(x,y,h) {
-	h = typeof(h) != 'undefined' ? h : 10; // Default h
-	// Lines
+function drawCross(pos, h) {
+	h = h || 5;
+
 	c.beginPath();
-	c.moveTo(x-h/2,y);
-	c.lineTo(x+h/2,y);
-	c.moveTo(x,y-h/2);
-	c.lineTo(x,y+h/2);
+	c.moveTo(pos.x - h / 2, pos.y);
+	c.lineTo(pos.x + h / 2, pos.y);
+	c.moveTo(pos.x, pos.y - h / 2);
+	c.lineTo(pos.x, pos.y + h / 2);
 	c.closePath();
-    c.stroke();
+	c.stroke();
 }

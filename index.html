@@ -2,55 +2,51 @@
 
 <head>
 	<link rel="stylesheet" type="text/css" href="bnStyle.css" />
+	<script>
+var m = { min: 0, max: 1e10 };
+
+// Basic update system step by time step dt
+var T = 0; // current system time
+var dt = 0.01;
+var stepTime;
+
+var timer;
+var sysRunning = false;
+
+var options = {
+	tree: {
+		stats: {}
+	},
+	rendering: {
+		arrows: false,
+		tree: false
+	}
+};
+	</script>
 	<script src="bhtree.js"></script>
 	<script src="graphics.js"></script>
 	<script src="userInput.js"></script>
 	<script src="fileIO.js"></script>
-	<title>Barnes-Hut Tree Implementation in HTML/Javascript</title>
+	<title>Barnes-Hut N-Body Simulation</title>
 </head>
 
 <body>
-<h2>Barnes-Hut Implementation in HTML/Javascript</h2>
-<p>A <a href="http://en.wikipedia.org/wiki/Barnes%E2%80%93Hut_simulation">Barnes-Hut Simulation</a> is an N-body simulation of gravitational interactions between point particles using the Barnes-Hut algorithm.</p>
+<h1><a href="http://en.wikipedia.org/wiki/Barnes%E2%80%93Hut_simulation">Barnes-Hut N-Body Simulation</a></h1>
 
-<table>
-	<tr>
-		<td colspan=2>
-			<div>
 			<button type="button" onclick="randomBodies(100)">Add 100 Random Bodies</button>
-			or Choose JSON Input File<input type="file" id="fileInputs" name="files[]" accept="json" /></br>
+			or choose input file (JSON)<input type="file" id="fileInputs" name="files[]" accept="json" /></br>
 			<output id="fileList"></output>
-			</div>
-		</td>
-	</tr>
-	<tr>
-		<td>
-			<canvas id="bnCanvas"
-					width="600" 
-					height="400" >
-			</canvas>
-			<div>
-				<table border=0>
-					<tr>					
-						<td><button type="button" onclick="toggleArrows()">Arrows Toggle</button></td>
-						<td><button type="button" onclick="toggleShowBNtree()">BN Tree Show/Hide</button></td>
-						<td><button type="button" onclick="toggleDEBUG()">Debug Toggle</button></td>
-						<td><center><b>DEBUG <span id="debugLVL"></span></b></center></td>
-						<td>0</td>
-						<td><input id="debugSlider" type="range" min=0 max=1 value=0 step=1 onchange="setDEBUG(this.value)" /></td>
-						<td>1</td>
-					</tr>
-				</table>
-			</div>
-		</td>
-		<td>
+			<canvas id="bnCanvas" width="800" height="400"></canvas>
+				
+			<button type="button" onclick="toggleArrows()">Arrows</button>
+			<button type="button" onclick="toggleShowBNtree()">BH-Tree</button>
+			<button type="button" onclick="resetSys()">Reset</button>
+			<button type="button" onclick="stst(this)">Start</button>
+			<button type="button" onclick="pauseSys()">Stop</button>
+
 			<div align=center>
-				<button type="button" onclick="resetSys()">Reset</button>
-				<button type="button" onclick="startSys()">Start</button>
-				<button type="button" onclick="pauseSys()">Stop/Pause</button>
 				<table border=0>
 					<tr><td colspan=3>
-						Bodies: <b><output id="bodyCount">0</output></b><br/>
 						TIME: <b><output id="timeDisp">0.0</output></b><br/>
 						DT: <b><span id="dtSliderVal">0.01</span></b>
 					</td></tr>
@@ -65,13 +61,28 @@
 					</tr>
 				</table>
 			</div>
-			<code>
-				<div id="data"><b>Quick Start:</b><br/>- Add some bodies<br/>- Press <b>Start</b></div>
-			</code>
-		</td>
-	</tr>
-</table>
-
+			<div id="data">
+				Bodies: <output id="bodies">0</output><br/>
+				</p>
+				<p>
+				<b>Tree</b><br />
+				Depth: <output id="depth">0</output><br />
+				Nodes: <output id="nodes">0</output><br />
+				Leaves: <output id="leaves">0</output><br />
+				</p>
+				<p>
+				<b>Calculations</b><br/>
+				BH-Tree: <output id="checks">0</output> <span style="font-style: italic; font-family: sans-serif;">O(nlogn)</span><br/>
+				Brute force: <output id="brute">0</output> <span style="font-style: italic; font-family: sans-serif;">O(n&sup2;)</span><br/>
+				</p>
+				<p>
+				Speedup: <output id="speedup">0</output>%<br/>
+				</p>
+				<p>
+				Computation: <output id="step">0</output>ms<br/>
+				Display: <output id="display">0</output>ms<br/>
+				</p>
+			</div>
 <p>
 <ul>
 	<li>Click to place body</li>
@@ -82,7 +93,9 @@
 	<li>Press s to step system once by time step dt.</li>
 </ul>
 </p>
-<p>Check out the <a href="https://github.com/Elucidation/Barnes-Hut-Tree-N-body-Implementation-in-HTML-Js">Source Code</a> on GitHub.</p>
+<a href="https://github.com/flowlo/bht-nbody">
+	<img class="fork" alt="Fork me on GitHub" src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png">
+</a>
 
 <script>
 var canvas = document.getElementById('bnCanvas'),
@@ -90,19 +103,11 @@ var canvas = document.getElementById('bnCanvas'),
     bodies = [],
     stats = {};
 var c = canvas.getContext('2d');
+var bruteHalfChecks = 0;
+var v = {};
 
-// Basic update system step by time step dt
-var T = 0; // current system time
-var dt = 0.01;
-var stepTime;
-
-var timer;
-var sysRunning = false;
-
-drawArrows = false;
 initGraphics();
 initUI();
-initFileIO();
 
 function randomBodies(n) {
 	for (var i = 0; i < n; i++)
@@ -125,6 +130,10 @@ function addBody(body) {
 		body.a = { x: 0, y: 0 };
 
 	bodies.push(body);
+	
+	bruteHalfChecks = bodies.length * (bodies.length - 1) / 2;
+
+	if (!sysRunning) render();
 }
 
 function doForces() {
@@ -133,35 +142,37 @@ function doForces() {
 		bodies[i].a.y = 0;
 	}
 	
-	var tree = new BHTree(canvas.width, canvas.height, bodies, true);
+	return new BHTree(bodies, options.tree);
 }
 
 function step() {
+	if (!sysRunning) return;
+
 	var now = new Date().getTime();
 
-
-	//stats = tree.getStats();
-	//console.log(stats);
-
-	leapfrog();
+	var tree = leapfrog();
 
 	stepTime = new Date().getTime() - now;
 
 	T += dt;
 
-	refreshGraphics();
+	render(tree);
+	setTimeout(step, 1);
 }
 
 function forwardEuler() {
+	var tree = doForces();
 	move(dt);
 	accelerate(dt);
+	return tree;
 }
 
 function leapfrog() {
-	move(0.5 * dt);
-	doForces();
+	move(dt / 2);
+	var tree = doForces();
 	accelerate(dt);
-	move(0.5 * dt);
+	move(dt / 2);
+	return tree;
 }
 
 function move(dt) {
@@ -172,22 +183,26 @@ function move(dt) {
 }
 
 function accelerate(dt) {
+	v.max = Number.NEGATIVE_INFINITY;
+	v.min = Number.POSITIVE_INFINITY;
+
 	for (var i = 0; i < bodies.length; i++) {
 		bodies[i].v.x += bodies[i].a.x * dt;
 		bodies[i].v.y += bodies[i].a.y * dt;
+		
+		bodies[i].v.magnitude = Math.sqrt(Math.pow(bodies[i].v.x, 2) + Math.pow(bodies[i].v.y, 2));
+
+		if (bodies[i].v.magnitude < v.min)
+			v.min = bodies[i].v.magnitude;
+		if (bodies[i].v.magnitude > v.max)
+			v.max = bodies[i].v.magnitude;
 	}
 }
 
-function startSys() {
-	timer = setInterval(step, 10);
-	//gfxTimer = setInterval(refreshGraphics, 1000 / 60.0);
-	sysRunning = true;
-}
+function stst(that) {
+	that.innerHTML = sysRunning ? 'Start' : 'Stop';
 
-function pauseSys() {
-	clearInterval(timer);
-	//clearInterval(gfxTimer);
-	sysRunning = false;
+	if (sysRunning = !sysRunning) setTimeout(step, 1);
 }
 </script>
 

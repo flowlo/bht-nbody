@@ -23,5 +23,5 @@ This fork adds following features to the parent repository:
 
 ## TODO
 
- [ ] Three dimensions
- [ ] Detailed documentation of input format
+ - [ ] Three dimensions
+ - [ ] Detailed documentation of input format

@@ -165,7 +165,7 @@ BHTree.prototype.doBNtreeRecurse = function(bI, node) {
 };
 
 BHTree.prototype.setAccel = function(i, j, both) {
-	if (arguments.length < 3)
+	if (both === undefined)
 		both = true;
 
 	var F = this.getForceVecDirect(bodies[i], bodies[j]);

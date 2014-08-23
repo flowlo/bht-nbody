@@ -48,7 +48,7 @@ function BHTree(bodies, options) {
 
 	this.stats = { depth: 0, nodes: 0, leaves: 0, checks: 0 };
 	this.root = {
-		elements: [],
+		content: undefined,
 		leaf: true,
 		box: {
 			x: { min: 0, max: options.width },
@@ -75,21 +75,21 @@ BHTree.prototype.collect = function(node, depth) {
 	this.stats.leaves += node.leaf;
 
 	for (var i = 0; i < 4 && !node.leaf; i++)
-		this.collect(node.elements[i], depth + 1);
+		this.collect(node.content[i], depth + 1);
 };
 
 BHTree.prototype.free = function(node) {
 	if (!node) return;
 
-	if (!node.leaf) node.elements.forEach(free);
+	if (!node.leaf) node.content.forEach(free);
 
-	delete node.elements;
+	delete node.content;
 	delete node.box;
 };
 
 BHTree.prototype.bnAddBody = function(node, i) {
-	if (node.elements.length === 0) {
-		node.elements = [ i ];
+	if (node.content === undefined) {
+		node.content = i;
 		node.com = { m: bodies[i].m, x: bodies[i].x, y: bodies[i].y };
 		return;
 	}
@@ -97,11 +97,11 @@ BHTree.prototype.bnAddBody = function(node, i) {
 	var quad = (bodies[i].x >= (node.box.x.min + node.box.x.max) / 2)
 		 + (bodies[i].y >= (node.box.y.min + node.box.y.max) / 2) * 2;
 
-	if (node.elements[quad] && !node.leaf) {
-		this.bnAddBody(node.elements[quad], i);
+	if (!node.leaf && node.content[quad]) {
+		this.bnAddBody(node.content[quad], i);
 	} else {
 		var child = {
-			elements: [ i ],
+			content: i,
 			leaf: true,
 			com : { m: bodies[i].m, x: bodies[i].x, y: bodies[i].y }
 		};
@@ -130,9 +130,9 @@ BHTree.prototype.bnAddBody = function(node, i) {
 
 		if (node.leaf) {
 			node.leaf = false;
-			node.elements = [];
+			node.content = [];
 		}
-		node.elements[quad] = child;
+		node.content[quad] = child;
 	}
 
 	node.com.x = (node.com.x * node.com.m + bodies[i].x * bodies[i].m) / (node.com.m + bodies[i].m);
@@ -144,11 +144,9 @@ BHTree.prototype.doBNtreeRecurse = function(bI, node) {
 	if (!node) return;
 
 	if (node.leaf) {
-		this.stats.checks += node.elements.length;
-
-		for (var k = 0; k < node.elements.length; k++)
-			if (bI != node.elements[k])
-				this.setAccel(bI, node.elements[k], false);
+		this.stats.checks++;
+		if (bI != node.content)
+			this.setAccel(bI, node.content, false);
 	} else {
 		var s = Math.min(node.box.x.max - node.box.x.min,
 			         node.box.y.max - node.box.y.min),
@@ -159,7 +157,7 @@ BHTree.prototype.doBNtreeRecurse = function(bI, node) {
 			this.stats.checks++;
 		} else {
 			for (var k = 0; k < 4; k++)
-				this.doBNtreeRecurse(bI, node.elements[k]);
+				this.doBNtreeRecurse(bI, node.content[k]);
 		}
 	}
 };

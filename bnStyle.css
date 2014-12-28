@@ -20,7 +20,6 @@ canvas {
 body {
 	font-family: OpenSans, Verdana, Arial, sans-serif;
 	font-size: smaller;
-	overflow: hidden;
 	margin: 5px;
 	padding: 5px;
 }

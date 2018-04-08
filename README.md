@@ -1,6 +1,6 @@
 # Barnes-Hut N-Body Simulation
 
-This is a two dimensional simulation of gravitational interactions between bodies using the [Barnes-Hut Simulation](http://en.wikipedia.org/wiki/Barnes%E2%80%93Hut_simulation) algorithm. [Try it out](https://flowlo.github.io/bht-nbody)!
+This is a two dimensional simulation of gravitational interactions between bodies using the [Barnes-Hut Simulation](http://en.wikipedia.org/wiki/Barnes%E2%80%93Hut_simulation) algorithm. [Try it out](https://lorenzleutgeb.github.io/bht-nbody)!
 
 This program is mainly intended for educational use and/or to experiment with gravity in gravitational systems etc.
 
